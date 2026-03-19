@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,6 +21,7 @@ import agendo.app.server.modules.appointment.dto.AppointmentResponse.UserSummary
 import agendo.app.server.modules.appointment.dto.CreateAppointmentRequest;
 import agendo.app.server.modules.appointment.models.AppointmentEntity;
 import agendo.app.server.modules.appointment.models.AppointmentServiceEntity;
+import agendo.app.server.modules.appointment.models.AppointmentStatus;
 import agendo.app.server.modules.appointment.models.ServiceTypeEntity;
 import agendo.app.server.modules.appointment.repository.AppointmentServiceRepository;
 import agendo.app.server.modules.appointment.service.AppointmentService;
@@ -106,6 +108,73 @@ public class AppointmentController {
         return ResponseEntity.ok(toResponse(appointmentService.findByIdAndParticipant(id, user)));
     }
 
+    @GetMapping("/professional")
+    @Operation(summary = "Listar agendamentos como profissional", description = "Retorna apenas agendamentos onde o usuário autenticado é o profissional.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
+    })
+    public ResponseEntity<List<AppointmentResponse>> findProfessional(@AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(
+            appointmentService.findByRole(user, "professional").stream().map(this::toResponse).toList()
+        );
+    }
+
+    @PatchMapping("/{id}/approve")
+    @Operation(summary = "Aprovar agendamento", description = "Apenas o profissional pode aprovar")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agendamento aprovado"),
+        @ApiResponse(responseCode = "403", description = "Permissão negada"),
+        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado"),
+        @ApiResponse(responseCode = "400", description = "Agendamento não está em status PENDING")
+    })
+    public ResponseEntity<AppointmentResponse> approve(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(toResponse(appointmentService.updateStatus(id, AppointmentStatus.APPROVED, user)));
+    }
+
+    @PatchMapping("/{id}/reject")
+    @Operation(summary = "Rejeitar agendamento", description = "Apenas o profissional pode rejeitar")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agendamento rejeitado"),
+        @ApiResponse(responseCode = "403", description = "Permissão negada"),
+        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado"),
+        @ApiResponse(responseCode = "400", description = "Agendamento não está em status PENDING")
+    })
+    public ResponseEntity<AppointmentResponse> reject(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(toResponse(appointmentService.updateStatus(id, AppointmentStatus.REJECTED, user)));
+    }
+
+    @PatchMapping("/{id}/cancel")
+    @Operation(summary = "Cancelar agendamento", description = "Cliente ou profissional pode cancelar após aprovação")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agendamento cancelado"),
+        @ApiResponse(responseCode = "403", description = "Permissão negada"),
+        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado"),
+        @ApiResponse(responseCode = "400", description = "Agendamento não está em status APPROVED")
+    })
+    public ResponseEntity<AppointmentResponse> cancel(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(toResponse(appointmentService.updateStatus(id, AppointmentStatus.CANCELLED, user)));
+    }
+
+    @PatchMapping("/{id}/complete")
+    @Operation(summary = "Marcar como concluído", description = "Apenas o profissional pode marcar como concluído")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Agendamento marcado como concluído"),
+        @ApiResponse(responseCode = "403", description = "Permissão negada"),
+        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado"),
+        @ApiResponse(responseCode = "400", description = "Agendamento não está em status APPROVED")
+    })
+    public ResponseEntity<AppointmentResponse> complete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(toResponse(appointmentService.updateStatus(id, AppointmentStatus.COMPLETED, user)));
+    }
+
     private AppointmentResponse toResponse(AppointmentEntity a) {
         List<AppointmentServiceEntity> services = appointmentServiceRepository.findByAppointmentId(a.getId());
 
@@ -123,7 +192,8 @@ public class AppointmentController {
             serviceSummaries,
             a.getTotalAmount(),
             a.getScheduleDate(),
-            a.getRequestDate()
+            a.getRequestDate(),
+            a.getStatus()
         );
     }
 }

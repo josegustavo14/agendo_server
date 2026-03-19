@@ -80,6 +80,7 @@ A API usa **Flyway** para gerenciar mudanças no schema do PostgreSQL.
 Os arquivos SQL estão em `src/main/resources/db/migration/`:
 - `V1__initial_schema.sql` — schema inicial com todas as tabelas
 - `V2__update_appointments_schema.sql` — alterações para suportar múltiplos serviços por agendamento
+- `V3__add_appointment_status.sql` — adiciona coluna `status` na tabela `appointments`
 
 ### Adicionar Novas Migrações
 Quando precisar alterar o schema:
@@ -135,6 +136,15 @@ Cada usuário só acessa os **próprios dados**:
 - Relação entre profissional e cliente
 - Podem incluir múltiplos serviços (M:N via `AppointmentServiceEntity`)
 - `totalAmount` é calculado automaticamente como a soma dos preços dos serviços inclusos
+- `status` representa o ciclo de vida do agendamento:
+
+| Status | Descrição |
+|--------|-----------|
+| `PENDING` | Criado pelo cliente, aguardando aprovação do profissional |
+| `APPROVED` | Profissional aprovou |
+| `REJECTED` | Profissional rejeitou |
+| `CANCELLED` | Cancelado por cliente ou profissional após aprovação |
+| `COMPLETED` | Atendimento realizado |
 
 ---
 
@@ -502,7 +512,8 @@ O usuário autenticado deve ser o profissional **ou** o cliente. Pode incluir m�
   ],
   "totalAmount": 200.00,
   "scheduleDate": "2026-03-20T14:00:00",
-  "requestDate": "2026-03-11T10:00:00"
+  "requestDate": "2026-03-11T10:00:00",
+  "status": "PENDING"
 }
 ```
 
@@ -520,6 +531,34 @@ Filtra por role do usuário autenticado.
 
 #### `GET /appointments/{id}` — Buscar agendamento por ID
 Retorna apenas se o usuário autenticado for profissional ou cliente do agendamento. `404` caso contrário.
+
+---
+
+#### `PATCH /appointments/{id}/approve` — Aprovar agendamento
+Autenticado. Apenas o **profissional** do agendamento pode aprovar. O status deve estar em `PENDING`.
+
+**Resposta 200:** appointment com `"status": "APPROVED"`
+
+---
+
+#### `PATCH /appointments/{id}/reject` — Rejeitar agendamento
+Autenticado. Apenas o **profissional** pode rejeitar. O status deve estar em `PENDING`.
+
+**Resposta 200:** appointment com `"status": "REJECTED"`
+
+---
+
+#### `PATCH /appointments/{id}/cancel` — Cancelar agendamento
+Autenticado. Cliente **ou** profissional pode cancelar. O status deve estar em `APPROVED`.
+
+**Resposta 200:** appointment com `"status": "CANCELLED"`
+
+---
+
+#### `PATCH /appointments/{id}/complete` — Concluir agendamento
+Autenticado. Apenas o **profissional** pode marcar como concluído. O status deve estar em `APPROVED`.
+
+**Resposta 200:** appointment com `"status": "COMPLETED"`
 
 ---
 
@@ -545,6 +584,10 @@ Retorna apenas se o usuário autenticado for profissional ou cliente do agendame
 | POST | `/appointments` | ✅ | Criar agendamento |
 | GET | `/appointments` | ✅ | Listar agendamentos |
 | GET | `/appointments/{id}` | ✅ | Buscar agendamento |
+| PATCH | `/appointments/{id}/approve` | ✅ | Aprovar agendamento (profissional) |
+| PATCH | `/appointments/{id}/reject` | ✅ | Rejeitar agendamento (profissional) |
+| PATCH | `/appointments/{id}/cancel` | ✅ | Cancelar agendamento (cliente ou profissional) |
+| PATCH | `/appointments/{id}/complete` | ✅ | Concluir agendamento (profissional) |
 
 ---
 
@@ -556,7 +599,7 @@ Retorna apenas se o usuário autenticado for profissional ou cliente do agendame
 
 ## Seed do banco de dados
 
-Na primeira execução, a aplicação popula automaticamente o banco com dados de exemplo (profissões, usuários, serviços e agendamentos). Todos os usuários têm senha padrão: `123456`.
+Na primeira execução, a apl/usaicação popula automaticamente o banco com dados de exemplo (profissões, usuários, serviços e agendamentos). Todos os usuários têm senha padrão: `123456`.
 
 ## Como rodar?
 

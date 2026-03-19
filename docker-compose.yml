@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ag  endo-app
+    container_name: agendo-app
     ports:
       - "9090:8080"
     environment:

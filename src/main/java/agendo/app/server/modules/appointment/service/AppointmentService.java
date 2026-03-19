@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 import agendo.app.server.modules.appointment.models.AppointmentEntity;
 import agendo.app.server.modules.appointment.models.AppointmentServiceEntity;
 import agendo.app.server.modules.appointment.models.ServiceTypeEntity;
+import agendo.app.server.modules.appointment.models.AppointmentStatus;
 import agendo.app.server.modules.appointment.repository.AppointmentRepository;
 import agendo.app.server.modules.appointment.repository.AppointmentServiceRepository;
 import agendo.app.server.modules.user.models.UserEntity;
@@ -57,5 +58,49 @@ public class AppointmentService {
             case "client" -> appointmentRepository.findByClient(user);
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role inválida. Use 'professional' ou 'client'");
         };
+    }
+
+    @Transactional
+    public AppointmentEntity updateStatus(Long id, AppointmentStatus newStatus, UserEntity user) {
+        AppointmentEntity appointment = findByIdAndParticipant(id, user);
+        AppointmentStatus currentStatus = appointment.getStatus();
+        boolean isProfessional = appointment.getProfessional().getId().equals(user.getId());
+
+        // Validate status transitions based on role and current state
+        switch (newStatus) {
+            case APPROVED -> {
+                if (!isProfessional) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can approve");
+                }
+                if (currentStatus != AppointmentStatus.PENDING) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only approve PENDING appointments");
+                }
+            }
+            case REJECTED -> {
+                if (!isProfessional) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can reject");
+                }
+                if (currentStatus != AppointmentStatus.PENDING) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only reject PENDING appointments");
+                }
+            }
+            case CANCELLED -> {
+                if (currentStatus != AppointmentStatus.APPROVED) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only cancel APPROVED appointments");
+                }
+            }
+            case COMPLETED -> {
+                if (!isProfessional) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can mark as completed");
+                }
+                if (currentStatus != AppointmentStatus.APPROVED) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only complete APPROVED appointments");
+                }
+            }
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");
+        }
+
+        appointment.setStatus(newStatus);
+        return appointmentRepository.save(appointment);
     }
 }
