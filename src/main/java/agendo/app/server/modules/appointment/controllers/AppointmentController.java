@@ -15,10 +15,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import agendo.app.server.modules.appointment.dto.AppointmentHistoryResponse;
 import agendo.app.server.modules.appointment.dto.AppointmentResponse;
 import agendo.app.server.modules.appointment.dto.AppointmentResponse.ServiceTypeSummary;
 import agendo.app.server.modules.appointment.dto.AppointmentResponse.UserSummary;
 import agendo.app.server.modules.appointment.dto.CreateAppointmentRequest;
+import agendo.app.server.modules.appointment.models.AppointmentHistoryEntity;
 import agendo.app.server.modules.appointment.models.AppointmentEntity;
 import agendo.app.server.modules.appointment.models.AppointmentServiceEntity;
 import agendo.app.server.modules.appointment.models.AppointmentStatus;
@@ -75,7 +77,7 @@ public class AppointmentController {
                 .scheduleDate(request.scheduleDate())
                 .build();
 
-        return ResponseEntity.status(201).body(toResponse(appointmentService.create(appointment, serviceTypes)));
+        return ResponseEntity.status(201).body(toResponse(appointmentService.create(appointment, serviceTypes, user)));
     }
 
     @GetMapping
@@ -117,7 +119,7 @@ public class AppointmentController {
         return ResponseEntity.ok(
             appointmentService.findByRole(user, "professional").stream().map(this::toResponse).toList()
         );
-    }
+    }   
 
     @PatchMapping("/{id}/approve")
     @Operation(summary = "Aprovar agendamento", description = "Apenas o profissional pode aprovar")
@@ -173,6 +175,53 @@ public class AppointmentController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserEntity user) {
         return ResponseEntity.ok(toResponse(appointmentService.updateStatus(id, AppointmentStatus.COMPLETED, user)));
+    }
+
+    @GetMapping("/active")
+    @Operation(
+        summary = "Agendamentos ativos",
+        description = "Retorna agendamentos com status PENDING ou APPROVED do usuário autenticado. Ideal para a home do app."
+    )
+    @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
+    public ResponseEntity<List<AppointmentResponse>> findActive(@AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(
+            appointmentService.findActive(user).stream().map(this::toResponse).toList()
+        );
+    }
+
+    @GetMapping("/archive")
+    @Operation(
+        summary = "Histórico de agendamentos",
+        description = "Retorna agendamentos encerrados (COMPLETED, CANCELLED, REJECTED) do usuário autenticado."
+    )
+    @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
+    public ResponseEntity<List<AppointmentResponse>> findArchive(@AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(
+            appointmentService.findArchive(user).stream().map(this::toResponse).toList()
+        );
+    }
+
+    @GetMapping("/{id}/timeline")
+    @Operation(
+        summary = "Timeline de um agendamento",
+        description = "Retorna a trilha cronológica de mudanças de status de um agendamento. Apenas participantes têm acesso."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Timeline retornada com sucesso"),
+        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado ou sem permissão")
+    })
+    public ResponseEntity<List<AppointmentHistoryResponse>> findTimeline(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserEntity user) {
+        List<AppointmentHistoryEntity> history = appointmentService.findTimeline(id, user);
+        List<AppointmentHistoryResponse> response = history.stream()
+                .map(h -> new AppointmentHistoryResponse(
+                        h.getPreviousStatus(),
+                        h.getNewStatus(),
+                        new AppointmentHistoryResponse.UserSummary(h.getChangedBy().getId(), h.getChangedBy().getName()),
+                        h.getChangedAt()))
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     private AppointmentResponse toResponse(AppointmentEntity a) {
