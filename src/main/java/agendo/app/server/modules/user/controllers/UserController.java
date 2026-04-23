@@ -1,15 +1,11 @@
 package agendo.app.server.modules.user.controllers;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import agendo.app.server.modules.user.dto.CreateUserRequest;
@@ -137,21 +133,4 @@ public class UserController {
         );
     }
 
-    @GetMapping
-    @Operation(summary = "Listar usuários", description = "Retorna todos os usuários, com filtro opcional por role")
-    @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
-    public ResponseEntity<List<UserResponse>> findAll(@RequestParam(required = false) UserRole role) {
-        List<UserEntity> users = role != null ? userService.findByRole(role) : userService.findAll();
-        return ResponseEntity.ok(users.stream().map(this::toUserResponse).toList());
-    }
-
-    @GetMapping("/{id}")
-    @Operation(summary = "Buscar usuário por ID")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Usuário encontrado"),
-        @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-    })
-    public ResponseEntity<UserResponse> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(toUserResponse(userService.findById(id)));
-    }
 }

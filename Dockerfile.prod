@@ -1,0 +1,28 @@
+
+# build da aplicação
+FROM gradle:jdk21-corretto AS builder
+
+WORKDIR /app
+
+# copia os arquivos de configuração do Gradle primeiro -> melhor uso de cache
+COPY build.gradle settings.gradle ./
+COPY gradle ./gradle
+
+# baixa as dependências
+RUN gradle dependencies --no-daemon
+
+# copia o restante do código e gera o JAR
+COPY src ./src
+RUN gradle bootJar --no-daemon
+
+# imagem final -> dá pra mudar, se necessário e/ou for diferente da que está usando.
+FROM amazoncorretto:21
+
+WORKDIR /app
+
+# copia apenas o JAR gerado no estágio anterior
+COPY --from=builder /app/build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

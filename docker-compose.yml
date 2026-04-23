@@ -19,12 +19,35 @@ services:
       timeout: 5s
       retries: 5
 
-  # Aplicação Spring Boot
+  # Aplicação Spring Boot (desenvolvimento com hot reload)
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: agendo-app
+    ports:
+      - "9090:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/agendo_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: "1234"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+    volumes:
+      - ./src:/app/src
+      - ./build.gradle:/app/build.gradle
+      - ./gradle:/app/gradle
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - dev
+
+  # Aplicação Spring Boot (produção)
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: agendo-app-prod
     restart: unless-stopped
     ports:
       - "9090:8080"
@@ -36,6 +59,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    profiles:
+      - prod
 
 volumes:
   postgres_data:
