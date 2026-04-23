@@ -3,6 +3,7 @@ package agendo.app.server.config;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import agendo.app.server.modules.payment.repository.PaymentRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
     private final ProfessionRepository professionRepository;
     private final ProfessionalProfileRepository professionalProfileRepository;
     private final ClientProfileRepository clientProfileRepository;
@@ -49,6 +51,7 @@ public class DataSeeder implements CommandLineRunner {
 
         // 1. Limpar tudo
         log.info("Excluindo todos os dados...");
+        paymentRepository.deleteAllInBatch();
         appointmentServiceRepository.deleteAllInBatch();
         appointmentRepository.deleteAllInBatch();
         serviceTypeRepository.deleteAllInBatch();
@@ -139,13 +142,13 @@ public class DataSeeder implements CommandLineRunner {
         // 6. Criar perfis de clientes
         clientProfileRepository.save(ClientProfileEntity.builder()
                 .user(ana)
-                .taxId("123.456.789-00")
+                .taxId("529.982.247-25")
                 .preferredPaymentMethod("PIX")
                 .build());
 
         clientProfileRepository.save(ClientProfileEntity.builder()
                 .user(pedro)
-                .taxId("987.654.321-00")
+                .taxId("529.982.247-25")
                 .preferredPaymentMethod("CARTAO_CREDITO")
                 .build());
 

@@ -33,17 +33,21 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers(HttpMethod.POST, "/users").permitAll()
-                .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
-                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
-                .requestMatchers("/appointments", "/appointments/**").authenticated()
-                .requestMatchers("/service-types", "/service-types/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/professionals", "/professionals/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/professions").permitAll()
-                .requestMatchers(HttpMethod.GET, "/ratings/professional/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated()
+                .authorizeHttpRequests(authz -> authz
+                    .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
+                    .requestMatchers("/appointments", "/appointments/**").authenticated()
+                    .requestMatchers("/service-types", "/service-types/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/professionals", "/professionals/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/professions").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/ratings/professional/**").permitAll()
+                    .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/payments/**").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/payments/**").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/webhooks/abacatepay").permitAll()
+                    .requestMatchers("/payments/**").authenticated()
+                    .anyRequest().authenticated()
             )
             .addFilterBefore(new JwtAuthenticationFilter(userRepository), UsernamePasswordAuthenticationFilter.class) // injeta filtro jwt antes de cada requisicao
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
