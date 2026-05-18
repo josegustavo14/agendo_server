@@ -1,0 +1,17 @@
+# ============================================================
+# Agendo - Caddyfile
+#
+# ATUAL: HTTP via IP (sem domínio)
+#
+# Para migrar para HTTPS quando tiver domínio:
+#   1. Substituir ":80" pelo domínio (ex: api.agendo.com)
+#   2. Caddy provisiona Let's Encrypt automaticamente
+#   3. Recarregar sem rebuild:
+#      docker compose -f docker-compose.prod.yml exec caddy \
+#        caddy reload --config /etc/caddy/Caddyfile
+# ============================================================
+
+:80 {
+    encode gzip
+    reverse_proxy app-prod:8080
+}
