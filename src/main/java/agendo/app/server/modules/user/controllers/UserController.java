@@ -1,7 +1,9 @@
 package agendo.app.server.modules.user.controllers;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -67,9 +69,9 @@ public class UserController {
     })
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         UserEntity user = userService.findByEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("Email ou senha inválidos"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos"));
         if (!userService.validatePassword(user, request.password())) {
-            throw new RuntimeException("Email ou senha inválidos");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos");
         }
 
         LoginResponse response = new LoginResponse(

@@ -3,6 +3,7 @@ package agendo.app.server.modules.user.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,13 @@ public class UserService {
     @Transactional
     public UserEntity createWithProfile(UserEntity user, Long professionId, String bio,
                                         String taxId, String preferredPaymentMethod) {
-        UserEntity savedUser = userRepository.save(user);
+        UserEntity savedUser;
+        try {
+            savedUser = userRepository.save(user);
+            userRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email já cadastrado: " + user.getEmail());
+        }
 
         if (savedUser.getRole() == UserRole.PROFESSIONAL) {
             ProfessionalProfileEntity.ProfessionalProfileEntityBuilder profileBuilder = ProfessionalProfileEntity.builder()
@@ -64,7 +71,7 @@ public class UserService {
 
     public UserEntity findById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + id));
     }
 
     public Optional<UserEntity> findByEmail(String email) {
