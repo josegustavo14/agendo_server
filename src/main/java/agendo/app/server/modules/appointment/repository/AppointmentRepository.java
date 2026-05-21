@@ -1,5 +1,6 @@
 package agendo.app.server.modules.appointment.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +28,7 @@ public interface AppointmentRepository extends JpaRepository<AppointmentEntity, 
 
     @Query("SELECT a FROM AppointmentEntity a JOIN FETCH a.professional JOIN FETCH a.client WHERE (a.professional = :user OR a.client = :user) AND a.status IN :statuses ORDER BY a.scheduleDate ASC")
     List<AppointmentEntity> findByParticipantAndStatuses(@Param("user") UserEntity user, @Param("statuses") List<AppointmentStatus> statuses);
+
+    @Query("SELECT a FROM AppointmentEntity a WHERE a.professional = :professional AND a.status = :status AND CAST(a.scheduleDate AS date) = :date")
+    List<AppointmentEntity> findByProfessionalAndDateAndStatus(@Param("professional") UserEntity professional, @Param("date") LocalDate date, @Param("status") AppointmentStatus status);
 }

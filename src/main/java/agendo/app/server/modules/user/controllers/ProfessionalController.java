@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import agendo.app.server.modules.appointment.models.ServiceTypeEntity;
 import agendo.app.server.modules.appointment.repository.ServiceTypeRepository;
+import agendo.app.server.modules.rating.service.RatingService;
 import agendo.app.server.modules.user.dto.ProfessionalSearchResponse;
 import agendo.app.server.modules.user.dto.ServiceTypeResponse;
 import agendo.app.server.modules.user.models.ProfessionalProfileEntity;
@@ -32,6 +33,7 @@ public class ProfessionalController {
 
     private final ProfessionalProfileRepository professionalProfileRepository;
     private final ServiceTypeRepository serviceTypeRepository;
+    private final RatingService ratingService;
 
     @GetMapping
     @Operation(
@@ -93,13 +95,15 @@ public class ProfessionalController {
     }
 
     private ProfessionalSearchResponse toSearchResponse(ProfessionalProfileEntity profile) {
+        Long userId = profile.getUser().getId();
         return new ProfessionalSearchResponse(
-            profile.getUser().getId(),
+            userId,
             profile.getUser().getName(),
             profile.getUser().getPhone(),
             profile.getProfession() != null ? profile.getProfession().getName() : null,
             profile.getBio(),
-            profile.getIsAvailable()
+            profile.getIsAvailable(),
+            ratingService.getAverageScore(userId)
         );
     }
 }
