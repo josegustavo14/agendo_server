@@ -1,8 +1,9 @@
+import os
 import pytest
 import requests
 import uuid
 
-BASE_URL = "http://localhost:9090"
+BASE_URL = os.environ.get("AGENDO_BASE_URL", "http://localhost:9090")
 
 
 def unique_email():
