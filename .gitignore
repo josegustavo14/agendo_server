@@ -42,8 +42,6 @@ scripts/
 # macOS
 .DS_Store
 
-# Local test artifacts
-testes/
 # Secrets
 .env
 .env.*
