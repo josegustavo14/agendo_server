@@ -12,9 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 import agendo.app.server.modules.appointment.models.AppointmentEntity;
 import agendo.app.server.modules.appointment.models.AppointmentServiceEntity;
 import agendo.app.server.modules.appointment.models.ServiceTypeEntity;
+import agendo.app.server.modules.appointment.repository.AppointmentHistoryRepository;
 import agendo.app.server.modules.appointment.repository.AppointmentRepository;
 import agendo.app.server.modules.appointment.repository.AppointmentServiceRepository;
 import agendo.app.server.modules.appointment.repository.ServiceTypeRepository;
+import agendo.app.server.modules.rating.repository.RatingRepository;
 import agendo.app.server.modules.user.models.ClientProfileEntity;
 import agendo.app.server.modules.user.models.ProfessionalProfileEntity;
 import agendo.app.server.modules.user.models.ProfessionEntity;
@@ -28,7 +30,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@Component
+// @Component
 @RequiredArgsConstructor
 @Slf4j
 public class DataSeeder implements CommandLineRunner {
@@ -39,8 +41,10 @@ public class DataSeeder implements CommandLineRunner {
     private final ProfessionalProfileRepository professionalProfileRepository;
     private final ClientProfileRepository clientProfileRepository;
     private final ServiceTypeRepository serviceTypeRepository;
+    private final AppointmentHistoryRepository appointmentHistoryRepository;
     private final AppointmentRepository appointmentRepository;
     private final AppointmentServiceRepository appointmentServiceRepository;
+    private final RatingRepository ratingRepository;
     private final PasswordEncoder passwordEncoder;
     private final EntityManager entityManager;
 
@@ -52,8 +56,10 @@ public class DataSeeder implements CommandLineRunner {
         // 1. Limpar tudo
         log.info("Excluindo todos os dados...");
         paymentRepository.deleteAllInBatch();
+        appointmentHistoryRepository.deleteAllInBatch();
         appointmentServiceRepository.deleteAllInBatch();
         appointmentRepository.deleteAllInBatch();
+        ratingRepository.deleteAllInBatch();
         serviceTypeRepository.deleteAllInBatch();
         professionalProfileRepository.deleteAllInBatch();
         clientProfileRepository.deleteAllInBatch();
