@@ -36,6 +36,14 @@ out/
 ### VS Code ###
 .vscode/
 
+# Local scripts (branch diagrams, etc.)
+scripts/
+
+# macOS
+.DS_Store
+
+# Local test artifacts
+testes/
 # Secrets
 .env
 .env.*
