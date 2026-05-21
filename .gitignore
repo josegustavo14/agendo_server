@@ -44,3 +44,7 @@ scripts/
 
 # Local test artifacts
 testes/
+# Secrets
+.env
+.env.*
+!.env.example

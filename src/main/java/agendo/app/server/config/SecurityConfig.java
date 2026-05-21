@@ -1,5 +1,6 @@
 package agendo.app.server.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -24,6 +25,9 @@ public class SecurityConfig {
 
     private final UserRepository userRepository;
 
+    @Value("${APP_CORS_ALLOWED_ORIGINS:*}")
+    private String corsAllowedOrigins;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(); // algoritmo para armazenar a senha, hash com salt automatico
@@ -33,6 +37,20 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .authorizeHttpRequests(authz -> authz
+                .requestMatchers("/error").permitAll()
+                .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
+                .requestMatchers("/appointments", "/appointments/**").authenticated()
+                .requestMatchers("/service-types", "/service-types/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/professionals", "/professionals/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/professions").permitAll()
+                .requestMatchers(HttpMethod.GET, "/availability/*/slots").permitAll()
+                .requestMatchers("/availability", "/availability/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/ratings/professional/**").authenticated()
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**").permitAll()
+                .anyRequest().authenticated()
                 .authorizeHttpRequests(authz -> authz
                     .requestMatchers(HttpMethod.POST, "/users").permitAll()
                     .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
@@ -59,7 +77,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.addAllowedOriginPattern("*");
+        for (String origin : corsAllowedOrigins.split(",")) {
+            config.addAllowedOriginPattern(origin.trim());
+        }
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
 

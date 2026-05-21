@@ -6,5 +6,6 @@ public record ProfessionalSearchResponse(
     String phone,
     String professionName,
     String bio,
-    Boolean isAvailable
+    Boolean isAvailable,
+    Double rating
 ) {}
