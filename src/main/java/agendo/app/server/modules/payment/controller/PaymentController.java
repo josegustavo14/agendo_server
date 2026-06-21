@@ -10,8 +10,14 @@ import agendo.app.server.modules.payment.service.PaymentService;
 import agendo.app.server.modules.user.models.UserEntity;
 import agendo.app.server.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @RestController
 @RequestMapping("/payments")
@@ -23,24 +29,52 @@ public class PaymentController {
     private final UserRepository userRepository;
 
     /**
-     * cria uma cobrança PIX para um agendamento.
-     * retorna a URL de pagamento da AbacatePay.
-     * POST /payments/billing/appointment/{appointmentId}?priceInCents=5000
+     * Re-tentativa MANUAL da geração de cobrança PIX de um agendamento.
+     *
+     * No fluxo normal, a cobrança é criada automaticamente quando o
+     * profissional aprova o agendamento (PaymentOnApprovalListener). Este
+     * endpoint serve apenas para RE-TENTAR caso aquela geração automática
+     * tenha falhado (ex: AbacatePay indisponível no momento da aprovação).
+     *
+     * Diferenças em relação à versão antiga (insegura):
+     *  - O usuário vem do TOKEN (@AuthenticationPrincipal), não de um
+     *    parâmetro userId manipulável na URL.
+     *  - Só o CLIENTE do próprio agendamento pode disparar (senão 403).
+     *  - O valor vem do totalAmount do agendamento, não de um priceInCents
+     *    arbitrário na query string.
+     *  - Se já existir cobrança, o PaymentService lança IllegalStateException;
+     *    aqui traduzimos para 409 Conflict (em vez de 500).
+     *
+     * POST /payments/billing/appointment/{appointmentId}
      */
     @PostMapping("/billing/appointment/{appointmentId}")
-    public ResponseEntity<BillingResponse> createBillingForAppointment(
+    public ResponseEntity<BillingResponse> retryBillingForAppointment(
             @PathVariable Long appointmentId,
-            @RequestParam int priceInCents,
-            @RequestParam Long userId
+            @AuthenticationPrincipal UserEntity user
     ) {
         AppointmentEntity appointment = appointmentRepository.findById(appointmentId)
-                .orElseThrow(() -> new RuntimeException("Agendamento não encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agendamento não encontrado"));
 
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        // só o cliente do agendamento pode gerar/retentar a própria cobrança
+        if (!appointment.getClient().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Apenas o cliente do agendamento pode gerar a cobrança");
+        }
 
-        BillingResponse response = paymentService.createBillingForAppointment(appointment, user, priceInCents);
-        return ResponseEntity.ok(response);
+        int priceInCents = toCents(appointment.getTotalAmount());
+
+        try {
+            BillingResponse response =
+                    paymentService.createBillingForAppointment(appointment, user, priceInCents);
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException alreadyExists) {
+            // idempotência do PaymentService: já há cobrança para o agendamento
+            throw new ResponseStatusException(HttpStatus.CONFLICT, alreadyExists.getMessage());
+        }
+    }
+
+    private int toCents(BigDecimal amount) {
+        return amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValueExact();
     }
 
     /** lista todas as cobranças da sua conta na AbacatePay. */
@@ -67,4 +101,3 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.listCustomers());
     }
 }
-

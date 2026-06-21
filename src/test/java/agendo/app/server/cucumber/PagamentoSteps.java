@@ -52,10 +52,13 @@ public class PagamentoSteps {
 
     @Quando("o cliente solicita o pagamento PIX do agendamento no valor de {int} centavos")
     public void clienteSolicitaOPagamentoPix(int priceInCents) {
+        // No novo fluxo, a cobrança é gerada por este endpoint de RE-TENTATIVA,
+        // que usa o usuário autenticado (token) e deriva o valor do agendamento.
+        // O parâmetro {int} centavos do .feature permanece como documentação do
+        // valor esperado, mas não é mais enviado na URL (o valor vem do
+        // totalAmount do agendamento no servidor).
         HttpTestResponse response = context.getHttp().post(
-                "/payments/billing/appointment/" + context.getAppointmentId()
-                        + "?priceInCents=" + priceInCents
-                        + "&userId=" + context.getClientId(),
+                "/payments/billing/appointment/" + context.getAppointmentId(),
                 null, context.getClientToken());
 
         context.setLastResponse(response);

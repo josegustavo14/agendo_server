@@ -62,7 +62,7 @@ class WebhookIntegrationTest extends IntegrationTestBase {
         when(abacatePayClient.createBilling(any())).thenReturn(stub);
 
         HttpTestResponse billing = http.post(
-                "/payments/billing/appointment/" + appointmentId + "?priceInCents=25000&userId=" + client.id(),
+                "/payments/billing/appointment/" + appointmentId,
                 null, client.token());
         assertThat(billing.status()).isEqualTo(200);
 

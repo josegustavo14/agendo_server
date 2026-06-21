@@ -26,6 +26,7 @@ public class AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final AppointmentServiceRepository appointmentServiceRepository;
     private final AppointmentHistoryRepository appointmentHistoryRepository;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AppointmentEntity create(AppointmentEntity appointment, List<ServiceTypeEntity> serviceTypes, UserEntity createdBy) {
@@ -133,6 +134,14 @@ public class AppointmentService {
                 .newStatus(newStatus)
                 .changedBy(user)
                 .build());
+
+        // Ao aprovar, dispara (após o commit) a geração da cobrança PIX.
+        // A publicação aqui só registra o evento; o listener AFTER_COMMIT
+        // garante que a cobrança só é criada se esta transação confirmar.
+        if (newStatus == AppointmentStatus.APPROVED) {
+            eventPublisher.publishEvent(
+                    new agendo.app.server.modules.appointment.events.AppointmentApprovedEvent(saved.getId()));
+        }
 
         return saved;
     }

@@ -35,15 +35,14 @@ public class PaymentService {
 
     public CustomerResponse createCustomer(UserEntity user) {
 
-        String taxId = user.getClientProfile() != null
-                ? user.getClientProfile().getTaxId()
-                : null;
-
+        // A AbacatePay exige que o campo customer.taxId EXISTA no JSON (não pode
+        // ser omitido/undefined), mas aceita string vazia. Como ela também rejeita
+        // CPFs sintéticos, enviamos "" — o pagador informa o CPF no checkout.
         CreateCustomerRequest request = CreateCustomerRequest.builder()
                 .name(user.getName())
                 .email(user.getEmail())
                 .cellphone(user.getPhone())
-                .taxId(taxId)
+                .taxId("")
                 .build();
         return abacatePayClient.createCustomer(request);
     }
@@ -63,10 +62,6 @@ public class PaymentService {
             int priceInCents
     ) {
 
-        String taxId = user.getClientProfile() != null
-                ? user.getClientProfile().getTaxId()
-                : null;
-
         // idempotência: bloqueia cobrança duplicada pro mesmo agendamento
         paymentRepository.findByAppointmentId(appointment.getId()).ifPresent(existing -> {
             throw new IllegalStateException(
@@ -84,11 +79,14 @@ public class PaymentService {
                 .price(priceInCents)
                 .build();
 
+        // taxId enviado como string vazia: a AbacatePay exige o campo presente
+        // (não pode ser undefined) mas rejeita CPFs sintéticos. O pagador informa
+        // o CPF no checkout. (ver createCustomer)
         CreateBillingRequest.CustomerData customer = CreateBillingRequest.CustomerData.builder()
                 .name(user.getName())
                 .email(user.getEmail())
                 .cellphone(user.getPhone())
-                .taxId(taxId)
+                .taxId("")
                 .build();
 
         CreateBillingRequest request = CreateBillingRequest.builder()

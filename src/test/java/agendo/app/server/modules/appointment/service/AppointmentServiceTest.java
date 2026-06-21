@@ -53,6 +53,9 @@ class AppointmentServiceTest {
     @Mock
     private AppointmentHistoryRepository appointmentHistoryRepository;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private AppointmentService appointmentService;
 
     private UserEntity professional;
@@ -61,7 +64,7 @@ class AppointmentServiceTest {
     @BeforeEach
     void setUp() {
         appointmentService = new AppointmentService(
-                appointmentRepository, appointmentServiceRepository, appointmentHistoryRepository);
+                appointmentRepository, appointmentServiceRepository, appointmentHistoryRepository, eventPublisher);
 
         professional = UserEntity.builder().id(1L).name("Profissional Teste").role(UserRole.PROFESSIONAL).build();
         client = UserEntity.builder().id(2L).name("Cliente Teste").role(UserRole.CLIENT).build();
@@ -142,6 +145,27 @@ class AppointmentServiceTest {
         AppointmentEntity result = appointmentService.updateStatus(100L, AppointmentStatus.APPROVED, professional);
 
         assertThat(result.getStatus()).isEqualTo(AppointmentStatus.APPROVED);
+
+        // ao aprovar, deve publicar o evento que dispara a cobrança PIX
+        verify(eventPublisher).publishEvent(
+                any(agendo.app.server.modules.appointment.events.AppointmentApprovedEvent.class));
+    }
+
+    @Test
+    void updateStatus_rejeitarNaoPublicaEventoDeCobranca() {
+        AppointmentEntity appointment = AppointmentEntity.builder()
+                .id(104L).professional(professional).client(client)
+                .status(AppointmentStatus.PENDING)
+                .build();
+
+        when(appointmentRepository.findByIdAndParticipant(104L, professional)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.save(any(AppointmentEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        appointmentService.updateStatus(104L, AppointmentStatus.REJECTED, professional);
+
+        // rejeitar NÃO deve gerar cobrança
+        verify(eventPublisher, never()).publishEvent(
+                any(agendo.app.server.modules.appointment.events.AppointmentApprovedEvent.class));
     }
 
     @Test

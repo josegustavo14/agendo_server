@@ -90,7 +90,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void createBillingForAppointment_deveEnviarTaxIdDoPerfilDoCliente() {
+    void createBillingForAppointment_naoEnviaTaxId() {
         when(paymentRepository.findByAppointmentId(42L)).thenReturn(Optional.empty());
         when(abacatePayClient.createBilling(any())).thenReturn(stubBillingResponse("bill_x", "https://pay/x"));
 
@@ -100,7 +100,10 @@ class PaymentServiceTest {
         verify(abacatePayClient).createBilling(captor.capture());
 
         CreateBillingRequest request = captor.getValue();
-        assertThat(request.getCustomer().getTaxId()).isEqualTo("123.456.789-00");
+        // o taxId NÃO é enviado à AbacatePay (ela rejeita CPFs sintéticos);
+        // o campo é omitido do JSON via @JsonInclude(NON_NULL)
+        assertThat(request.getCustomer().getTaxId()).isEqualTo("");
+        assertThat(request.getCustomer().getName()).isEqualTo("Ana Cliente");
         assertThat(request.getExternalId()).isEqualTo("agendo-appt-42");
         assertThat(request.getProducts()).hasSize(1);
         assertThat(request.getProducts().get(0).getPrice()).isEqualTo(5000);
@@ -108,7 +111,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void createBillingForAppointment_clienteSemPerfilEnviaTaxIdNulo() {
+    void createBillingForAppointment_enviaTaxIdVazioQuandoClienteSemPerfil() {
         client.setClientProfile(null);
 
         when(paymentRepository.findByAppointmentId(42L)).thenReturn(Optional.empty());
@@ -119,7 +122,7 @@ class PaymentServiceTest {
         ArgumentCaptor<CreateBillingRequest> captor = ArgumentCaptor.forClass(CreateBillingRequest.class);
         verify(abacatePayClient).createBilling(captor.capture());
 
-        assertThat(captor.getValue().getCustomer().getTaxId()).isNull();
+        assertThat(captor.getValue().getCustomer().getTaxId()).isEqualTo("");
     }
 
     @Test
@@ -152,7 +155,7 @@ class PaymentServiceTest {
         return org.mockito.ArgumentMatchers.argThat(req ->
                 req.getName().equals("Ana Cliente")
                         && req.getEmail().equals("ana@teste.com")
-                        && req.getTaxId().equals("123.456.789-00"));
+                        && req.getTaxId().equals(""));
     }
 
     private BillingResponse stubBillingResponse(String id, String url) {
