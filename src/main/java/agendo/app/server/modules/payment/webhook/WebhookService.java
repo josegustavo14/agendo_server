@@ -61,7 +61,8 @@ public class WebhookService {
         paymentRepository.save(payment);
 
         log.info("[Webhook] Pagamento confirmado: billingId={} | appointmentId={}",
-                billingId, payment.getAppointment().getId());
+                billingId,
+                payment.getAppointment() != null ? payment.getAppointment().getId() : "N/A");
 
         // aqui podemos disparar notificações, e-mails, atualizar o status do agendamento, etc.
         // ex: appointmentService.markAsPaid(payment.getAppointment().getId());
@@ -95,4 +96,3 @@ public class WebhookService {
         );
     }
 }
-

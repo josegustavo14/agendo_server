@@ -36,25 +36,26 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/error").permitAll()
-                .requestMatchers(HttpMethod.POST, "/users").permitAll()
-                .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
-                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
-                .requestMatchers("/appointments", "/appointments/**").authenticated()
-                .requestMatchers("/service-types", "/service-types/**").authenticated()
-                .requestMatchers(HttpMethod.GET, "/professionals", "/professionals/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/professions").permitAll()
-                .requestMatchers(HttpMethod.GET, "/availability/*/slots").permitAll()
-                .requestMatchers("/availability", "/availability/**").authenticated()
-                .requestMatchers(HttpMethod.GET, "/ratings/professional/**").authenticated()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(new JwtAuthenticationFilter(userRepository), UsernamePasswordAuthenticationFilter.class) // injeta filtro jwt antes de cada requisicao
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .csrf(csrf -> csrf.disable()); //
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/webhooks/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
+                        .requestMatchers("/appointments", "/appointments/**").authenticated()
+                        .requestMatchers("/service-types", "/service-types/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/professionals", "/professionals/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/professions").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/availability/*/slots").permitAll()
+                        .requestMatchers("/availability", "/availability/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/ratings/professional/**").authenticated()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs", "/v3/api-docs/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(new JwtAuthenticationFilter(userRepository), UsernamePasswordAuthenticationFilter.class) // injeta filtro jwt antes de cada requisicao
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(csrf -> csrf.disable()); //
 
         return http.build();
     }
