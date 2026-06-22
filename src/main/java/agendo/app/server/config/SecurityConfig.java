@@ -47,6 +47,11 @@ public class SecurityConfig {
                         .requestMatchers("/service-types", "/service-types/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/professionals", "/professionals/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/professions").permitAll()
+                        // POST/DELETE /professions é administrativo: autenticação
+                        // por header X-Admin-Token validado dentro do controller.
+                        // Liberado aqui para não exigir JWT.
+                        .requestMatchers(HttpMethod.POST, "/professions").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/professions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/availability/*/slots").permitAll()
                         .requestMatchers("/availability", "/availability/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/ratings/professional/**").authenticated()
