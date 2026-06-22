@@ -36,6 +36,7 @@ public class WebhookService {
             case BILLING_REFUNDED -> handleBillingRefunded(payload);
             case BILLING_CREATED  -> log.info("[Webhook] Cobrança criada: {}", payload.getData().getBilling());
             case UNKNOWN          -> log.warn("[Webhook] Evento desconhecido ignorado: {}", payload.getEvent());
+            default               -> log.warn("[Webhook] Evento não tratado: {}", event);
         }
     }
 

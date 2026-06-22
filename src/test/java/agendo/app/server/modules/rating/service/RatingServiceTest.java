@@ -16,27 +16,18 @@ import org.springframework.web.server.ResponseStatusException;
 
 import agendo.app.server.modules.rating.models.RatingEntity;
 import agendo.app.server.modules.rating.repository.RatingRepository;
-import agendo.app.server.modules.user.repository.ProfessionalProfileRepository;
 import agendo.app.server.modules.user.models.UserEntity;
 import agendo.app.server.modules.user.models.UserRole;
 
 /**
  * Testes unitários do RatingService — cobre as regras de quem pode avaliar
  * e quem pode ser avaliado.
- *
- * Nota: o construtor exige um ProfessionalProfileRepository porque a classe
- * o declara como dependência (atualmente sem uso real — ver o relatório de
- * qualidade de código). Ele é mockado aqui apenas para satisfazer o
- * construtor; nenhum teste interage com ele.
  */
 @ExtendWith(MockitoExtension.class)
 class RatingServiceTest {
 
     @Mock
     private RatingRepository ratingRepository;
-
-    @Mock
-    private ProfessionalProfileRepository professionalProfileRepository;
 
     private RatingService ratingService;
 
@@ -45,7 +36,7 @@ class RatingServiceTest {
 
     @BeforeEach
     void setUp() {
-        ratingService = new RatingService(ratingRepository, professionalProfileRepository);
+        ratingService = new RatingService(ratingRepository);
 
         client = UserEntity.builder().id(1L).name("Cliente").role(UserRole.CLIENT).build();
         professional = UserEntity.builder().id(2L).name("Profissional").role(UserRole.PROFESSIONAL).build();

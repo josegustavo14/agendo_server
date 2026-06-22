@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'agendo.app'
@@ -72,4 +73,15 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // gera o relatório de cobertura automaticamente após os testes
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        // o SonarQube lê o XML; o HTML é útil para visualização local
+        xml.required = true
+        html.required = true
+    }
 }

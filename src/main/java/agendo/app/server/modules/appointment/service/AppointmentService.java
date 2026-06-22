@@ -92,38 +92,7 @@ public class AppointmentService {
         AppointmentStatus currentStatus = appointment.getStatus();
         boolean isProfessional = appointment.getProfessional().getId().equals(user.getId());
 
-        switch (newStatus) {
-            case APPROVED -> {
-                if (!isProfessional) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can approve");
-                }
-                if (currentStatus != AppointmentStatus.PENDING) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only approve PENDING appointments");
-                }
-            }
-            case REJECTED -> {
-                if (!isProfessional) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can reject");
-                }
-                if (currentStatus != AppointmentStatus.PENDING) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only reject PENDING appointments");
-                }
-            }
-            case CANCELLED -> {
-                if (currentStatus != AppointmentStatus.APPROVED) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only cancel APPROVED appointments");
-                }
-            }
-            case COMPLETED -> {
-                if (!isProfessional) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can mark as completed");
-                }
-                if (currentStatus != AppointmentStatus.APPROVED) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only complete APPROVED appointments");
-                }
-            }
-            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");
-        }
+        validateTransition(newStatus, currentStatus, isProfessional);
 
         appointment.setStatus(newStatus);
         AppointmentEntity saved = appointmentRepository.save(appointment);
@@ -144,5 +113,42 @@ public class AppointmentService {
         }
 
         return saved;
+    }
+
+    /**
+     * Valida se a transição de status é permitida, lançando exceção HTTP
+     * apropriada caso contrário. Extraído de updateStatus para reduzir a
+     * complexidade cognitiva do método principal.
+     */
+    private void validateTransition(AppointmentStatus newStatus, AppointmentStatus currentStatus,
+                                    boolean isProfessional) {
+        switch (newStatus) {
+            case APPROVED -> requireProfessionalFrom(isProfessional, currentStatus,
+                    AppointmentStatus.PENDING, "approve");
+            case REJECTED -> requireProfessionalFrom(isProfessional, currentStatus,
+                    AppointmentStatus.PENDING, "reject");
+            case COMPLETED -> requireProfessionalFrom(isProfessional, currentStatus,
+                    AppointmentStatus.APPROVED, "complete");
+            case CANCELLED -> requireCurrentStatus(currentStatus, AppointmentStatus.APPROVED, "cancel");
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");
+        }
+    }
+
+    /** Exige que quem age seja o profissional e que o status atual seja o esperado. */
+    private void requireProfessionalFrom(boolean isProfessional, AppointmentStatus currentStatus,
+                                         AppointmentStatus required, String action) {
+        if (!isProfessional) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can " + action);
+        }
+        requireCurrentStatus(currentStatus, required, action);
+    }
+
+    /** Exige que o status atual seja o esperado para a ação. */
+    private void requireCurrentStatus(AppointmentStatus currentStatus, AppointmentStatus required,
+                                      String action) {
+        if (currentStatus != required) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Can only " + action + " " + required + " appointments");
+        }
     }
 }
