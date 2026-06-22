@@ -44,6 +44,8 @@ services:
       SPRING_FORMAT_SQL: ${SPRING_FORMAT_SQL}
       APP_SEED_ENABLED: ${APP_SEED_ENABLED}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
+      # Admin (token usado em POST/DELETE /professions via curl)
+      AGENDO_ADMIN_TOKEN: ${AGENDO_ADMIN_TOKEN}
       # AbacatePay
       ABACATEPAY_API_KEY: ${ABACATEPAY_API_KEY}
       ABACATEPAY_WEBHOOK_SECRET: ${ABACATEPAY_WEBHOOK_SECRET}
@@ -63,6 +65,8 @@ services:
       - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web:/srv/web:ro
+      - ./certs:/etc/caddy/certs:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
