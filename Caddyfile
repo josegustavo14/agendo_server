@@ -1,0 +1,22 @@
+# ============================================================
+# Agendo - Caddyfile (PRODUÇÃO / VPS)
+#
+# Usado apenas pelo docker-compose.prod.yml (serviço caddy).
+# O ambiente local/dev NÃO usa este arquivo — lá o HTTPS é feito
+# pelo ngrok, e a aplicação é acessada diretamente.
+#
+# Ao usar um nome de domínio (em vez de ":80"), o Caddy provisiona
+# e renova o certificado HTTPS via Let's Encrypt automaticamente,
+# servindo em 443. Requisitos na VPS:
+#   - DNS de oortcloud.com.br apontando para o IP da VPS
+#   - Portas 80 e 443 abertas no firewall
+#
+# Recarregar sem rebuild após editar:
+#   docker compose -f docker-compose.prod.yml exec caddy \
+#     caddy reload --config /etc/caddy/Caddyfile
+# ============================================================
+
+oortcloud.com.br {
+    encode gzip
+    reverse_proxy app-prod:8080
+}

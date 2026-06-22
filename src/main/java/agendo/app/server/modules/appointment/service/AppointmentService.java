@@ -9,8 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import agendo.app.server.modules.appointment.models.AppointmentEntity;
+import agendo.app.server.modules.appointment.models.AppointmentHistoryEntity;
 import agendo.app.server.modules.appointment.models.AppointmentServiceEntity;
+import agendo.app.server.modules.appointment.models.AppointmentStatus;
 import agendo.app.server.modules.appointment.models.ServiceTypeEntity;
+import agendo.app.server.modules.appointment.repository.AppointmentHistoryRepository;
 import agendo.app.server.modules.appointment.repository.AppointmentRepository;
 import agendo.app.server.modules.appointment.repository.AppointmentServiceRepository;
 import agendo.app.server.modules.user.models.UserEntity;
@@ -22,9 +25,11 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final AppointmentServiceRepository appointmentServiceRepository;
+    private final AppointmentHistoryRepository appointmentHistoryRepository;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public AppointmentEntity create(AppointmentEntity appointment, List<ServiceTypeEntity> serviceTypes) {
+    public AppointmentEntity create(AppointmentEntity appointment, List<ServiceTypeEntity> serviceTypes, UserEntity createdBy) {
         BigDecimal total = serviceTypes.stream()
                 .map(ServiceTypeEntity::getPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -38,6 +43,13 @@ public class AppointmentService {
                         .serviceType(st)
                         .build()
         ));
+
+        appointmentHistoryRepository.save(AppointmentHistoryEntity.builder()
+                .appointment(saved)
+                .previousStatus(null)
+                .newStatus(AppointmentStatus.PENDING)
+                .changedBy(createdBy)
+                .build());
 
         return saved;
     }
@@ -57,5 +69,86 @@ public class AppointmentService {
             case "client" -> appointmentRepository.findByClient(user);
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role inválida. Use 'professional' ou 'client'");
         };
+    }
+
+    public List<AppointmentEntity> findActive(UserEntity user) {
+        return appointmentRepository.findByParticipantAndStatuses(
+                user, List.of(AppointmentStatus.PENDING, AppointmentStatus.APPROVED));
+    }
+
+    public List<AppointmentEntity> findArchive(UserEntity user) {
+        return appointmentRepository.findByParticipantAndStatuses(
+                user, List.of(AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED));
+    }
+
+    public List<AppointmentHistoryEntity> findTimeline(Long appointmentId, UserEntity user) {
+        findByIdAndParticipant(appointmentId, user);
+        return appointmentHistoryRepository.findByAppointmentId(appointmentId);
+    }
+
+    @Transactional
+    public AppointmentEntity updateStatus(Long id, AppointmentStatus newStatus, UserEntity user) {
+        AppointmentEntity appointment = findByIdAndParticipant(id, user);
+        AppointmentStatus currentStatus = appointment.getStatus();
+        boolean isProfessional = appointment.getProfessional().getId().equals(user.getId());
+
+        validateTransition(newStatus, currentStatus, isProfessional);
+
+        appointment.setStatus(newStatus);
+        AppointmentEntity saved = appointmentRepository.save(appointment);
+
+        appointmentHistoryRepository.save(AppointmentHistoryEntity.builder()
+                .appointment(saved)
+                .previousStatus(currentStatus)
+                .newStatus(newStatus)
+                .changedBy(user)
+                .build());
+
+        // Ao aprovar, dispara (após o commit) a geração da cobrança PIX.
+        // A publicação aqui só registra o evento; o listener AFTER_COMMIT
+        // garante que a cobrança só é criada se esta transação confirmar.
+        if (newStatus == AppointmentStatus.APPROVED) {
+            eventPublisher.publishEvent(
+                    new agendo.app.server.modules.appointment.events.AppointmentApprovedEvent(saved.getId()));
+        }
+
+        return saved;
+    }
+
+    /**
+     * Valida se a transição de status é permitida, lançando exceção HTTP
+     * apropriada caso contrário. Extraído de updateStatus para reduzir a
+     * complexidade cognitiva do método principal.
+     */
+    private void validateTransition(AppointmentStatus newStatus, AppointmentStatus currentStatus,
+                                    boolean isProfessional) {
+        switch (newStatus) {
+            case APPROVED -> requireProfessionalFrom(isProfessional, currentStatus,
+                    AppointmentStatus.PENDING, "approve");
+            case REJECTED -> requireProfessionalFrom(isProfessional, currentStatus,
+                    AppointmentStatus.PENDING, "reject");
+            case COMPLETED -> requireProfessionalFrom(isProfessional, currentStatus,
+                    AppointmentStatus.APPROVED, "complete");
+            case CANCELLED -> requireCurrentStatus(currentStatus, AppointmentStatus.APPROVED, "cancel");
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");
+        }
+    }
+
+    /** Exige que quem age seja o profissional e que o status atual seja o esperado. */
+    private void requireProfessionalFrom(boolean isProfessional, AppointmentStatus currentStatus,
+                                         AppointmentStatus required, String action) {
+        if (!isProfessional) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can " + action);
+        }
+        requireCurrentStatus(currentStatus, required, action);
+    }
+
+    /** Exige que o status atual seja o esperado para a ação. */
+    private void requireCurrentStatus(AppointmentStatus currentStatus, AppointmentStatus required,
+                                      String action) {
+        if (currentStatus != required) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Can only " + action + " " + required + " appointments");
+        }
     }
 }

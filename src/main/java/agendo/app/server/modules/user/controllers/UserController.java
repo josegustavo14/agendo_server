@@ -1,15 +1,13 @@
 package agendo.app.server.modules.user.controllers;
 
-import java.util.List;
-
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import agendo.app.server.modules.user.dto.CreateUserRequest;
@@ -40,8 +38,8 @@ public class UserController {
     @PostMapping
     @Operation(summary = "Criar usuário", description = "Cria um novo usuário com role PROFESSIONAL ou CLIENT, junto com o perfil correspondente")
     @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Usuário criado com sucesso"),
-        @ApiResponse(responseCode = "400", description = "Dados inválidos")
+            @ApiResponse(responseCode = "201", description = "Usuário criado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
     public ResponseEntity<UserResponse> create(@RequestBody CreateUserRequest request) {
         UserEntity user = UserEntity.builder()
@@ -66,21 +64,21 @@ public class UserController {
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Faz login com email e senha, retorna o token")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Login realizado com sucesso"),
-        @ApiResponse(responseCode = "401", description = "Email ou senha inválidos")
+            @ApiResponse(responseCode = "200", description = "Login realizado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Email ou senha inválidos")
     })
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         UserEntity user = userService.findByEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("Email ou senha inválidos"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos"));
         if (!userService.validatePassword(user, request.password())) {
-            throw new RuntimeException("Email ou senha inválidos");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos");
         }
 
         LoginResponse response = new LoginResponse(
-            user.getId(),
-            user.getName(),
-            user.getEmail(),
-            user.getToken()
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getToken()
         );
         return ResponseEntity.ok(response);
     }
@@ -88,70 +86,56 @@ public class UserController {
     @GetMapping("/me")
     @Operation(summary = "Dados do usuário autenticado", description = "Retorna as informações do usuário autenticado pelo token")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Dados retornados com sucesso"),
-        @ApiResponse(responseCode = "401", description = "Token inválido ou ausente")
+            @ApiResponse(responseCode = "200", description = "Dados retornados com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Token inválido ou ausente")
     })
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal UserEntity user) {
         return ResponseEntity.ok(toUserResponse(user));
     }
 
     private UserResponse toUserResponse(UserEntity user) {
-        ProfessionalProfileResponse profResponse = null;
-        ClientProfileResponse clientResponse = null;
-
-        if (user.getRole() == UserRole.PROFESSIONAL) {
-            ProfessionalProfileEntity profile = user.getProfessionalProfile();
-            if (profile == null) {
-                profile = userService.findProfessionalProfile(user).orElse(null);
-            }
-            if (profile != null) {
-                profResponse = new ProfessionalProfileResponse(
-                    profile.getProfession() != null ? profile.getProfession().getId() : null,
-                    profile.getProfession() != null ? profile.getProfession().getName() : null,
-                    profile.getBio(),
-                    profile.getIsAvailable()
-                );
-            }
-        } else if (user.getRole() == UserRole.CLIENT) {
-            ClientProfileEntity profile = user.getClientProfile();
-            if (profile == null) {
-                profile = userService.findClientProfile(user).orElse(null);
-            }
-            if (profile != null) {
-                clientResponse = new ClientProfileResponse(
-                    profile.getTaxId(),
-                    profile.getPreferredPaymentMethod()
-                );
-            }
-        }
-
         return new UserResponse(
-            user.getId(),
-            user.getName(),
-            user.getEmail(),
-            user.getPhone(),
-            user.getRole().name(),
-            user.getToken(),
-            profResponse,
-            clientResponse
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole().name(),
+                user.getToken(),
+                buildProfessionalResponse(user),
+                buildClientResponse(user)
         );
     }
 
-    @GetMapping
-    @Operation(summary = "Listar usuários", description = "Retorna todos os usuários, com filtro opcional por role")
-    @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
-    public ResponseEntity<List<UserResponse>> findAll(@RequestParam(required = false) UserRole role) {
-        List<UserEntity> users = role != null ? userService.findByRole(role) : userService.findAll();
-        return ResponseEntity.ok(users.stream().map(this::toUserResponse).toList());
+    private ProfessionalProfileResponse buildProfessionalResponse(UserEntity user) {
+        if (user.getRole() != UserRole.PROFESSIONAL) {
+            return null;
+        }
+        ProfessionalProfileEntity profile = user.getProfessionalProfile();
+        if (profile == null) {
+            profile = userService.findProfessionalProfile(user).orElse(null);
+        }
+        if (profile == null) {
+            return null;
+        }
+        Long professionId = profile.getProfession() != null ? profile.getProfession().getId() : null;
+        String professionName = profile.getProfession() != null ? profile.getProfession().getName() : null;
+        return new ProfessionalProfileResponse(
+                professionId, professionName, profile.getBio(), profile.getIsAvailable()
+        );
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Buscar usuário por ID")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Usuário encontrado"),
-        @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-    })
-    public ResponseEntity<UserResponse> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(toUserResponse(userService.findById(id)));
+    private ClientProfileResponse buildClientResponse(UserEntity user) {
+        if (user.getRole() != UserRole.CLIENT) {
+            return null;
+        }
+        ClientProfileEntity profile = user.getClientProfile();
+        if (profile == null) {
+            profile = userService.findClientProfile(user).orElse(null);
+        }
+        if (profile == null) {
+            return null;
+        }
+        return new ClientProfileResponse(profile.getTaxId(), profile.getPreferredPaymentMethod());
     }
+
 }
