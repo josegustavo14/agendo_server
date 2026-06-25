@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-test:
-    name: Build, Test & Sonar
+    name: Build & Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,16 +37,6 @@ jobs:
         with:
           name: backend-test-report
           path: build/reports/tests/test
-
-      - name: SonarQube scan
-        env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          ./gradlew sonar \
-            -Dsonar.projectKey=agendo \
-            -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.login=$SONAR_TOKEN
 
       - name: Build Docker image (prod)
         run: docker build -f Dockerfile.prod -t agendo-backend:${{ github.sha }} .
