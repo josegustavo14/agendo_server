@@ -34,7 +34,6 @@ import agendo.app.server.modules.user.repository.ClientProfileRepository;
 import agendo.app.server.modules.user.repository.ProfessionalProfileRepository;
 import agendo.app.server.modules.user.repository.ProfessionRepository;
 import agendo.app.server.modules.user.repository.UserRepository;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,7 +53,6 @@ public class DataSeeder implements CommandLineRunner {
     private final RatingRepository ratingRepository;
     private final WeeklyScheduleRepository weeklyScheduleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EntityManager entityManager;
 
     @Value("${app.seed.enabled:false}")
     private boolean seedEnabled;
@@ -90,25 +88,25 @@ public class DataSeeder implements CommandLineRunner {
 
         // --- Serviços Rafael (Barbeiro) ---
         var corteMasc   = createService(rafael, "Corte Masculino",      "Corte social ou moderno com máquina e tesoura", "45.00");
-        var barba       = createService(rafael, "Barba Completa",       "Aparar, desenhar e navalha com toalha quente", "35.00");
+        createService(rafael, "Barba Completa",       "Aparar, desenhar e navalha com toalha quente", "35.00");
         var corteBarba  = createService(rafael, "Corte + Barba",        "Combo corte masculino e barba completa", "70.00");
         var sobrancelha = createService(rafael, "Sobrancelha",          "Design de sobrancelha masculina com navalha", "20.00");
-        var hidratacao  = createService(rafael, "Hidratação Capilar",   "Tratamento de hidratação profunda para cabelo", "50.00");
+        createService(rafael, "Hidratação Capilar",   "Tratamento de hidratação profunda para cabelo", "50.00");
         var pigmentacao = createService(rafael, "Pigmentação de Barba", "Preenchimento de falhas na barba com pigmento", "80.00");
 
         // --- Serviços Camila (Personal) ---
         var avaliacao     = createService(camila, "Avaliação Física",        "Avaliação completa com bioimpedância e medidas corporais", "120.00");
         var treinoPersonal = createService(camila, "Treino Personalizado",   "Sessão individual de treino na academia (1h)", "90.00");
         var treinoFunc    = createService(camila, "Treino Funcional",        "Sessão de treino funcional ao ar livre (1h)", "80.00");
-        var consultNutri  = createService(camila, "Consultoria Nutricional", "Orientação alimentar para objetivos fitness", "150.00");
+        createService(camila, "Consultoria Nutricional", "Orientação alimentar para objetivos fitness", "150.00");
         var planoMensal   = createService(camila, "Plano de Treino Mensal",  "Montagem de planilha personalizada para 30 dias", "200.00");
         var alongamento   = createService(camila, "Aula de Alongamento",     "Sessão de alongamento e mobilidade (45min)", "60.00");
-        var treinoDupla   = createService(camila, "Treino em Dupla",         "Sessão de treino para 2 pessoas (1h)", "140.00");
+        createService(camila, "Treino em Dupla",         "Sessão de treino para 2 pessoas (1h)", "140.00");
 
         // --- Serviços João (Eletricista) ---
         var tomada     = createService(joao, "Instalação de Tomada",     "Instalação de tomada simples ou tripla", "80.00");
         var disjuntor  = createService(joao, "Troca de Disjuntor",       "Substituição de disjuntor no quadro elétrico", "100.00");
-        var chuveiro   = createService(joao, "Instalação de Chuveiro",   "Instalação elétrica de chuveiro com fiação adequada", "120.00");
+        createService(joao, "Instalação de Chuveiro",   "Instalação elétrica de chuveiro com fiação adequada", "120.00");
         var quadro     = createService(joao, "Manutenção de Quadro",     "Revisão e manutenção do quadro de distribuição", "180.00");
         var luminaria  = createService(joao, "Instalação de Luminária",  "Instalação de lustres, plafons e luminárias", "90.00");
         var fiacao     = createService(joao, "Passagem de Fiação",       "Passagem de cabos em eletrodutos existentes", "150.00");
@@ -227,7 +225,7 @@ public class DataSeeder implements CommandLineRunner {
     // ---- helpers ----
 
     private UserEntity createProfessional(String name, String email, String phone, String hash,
-                                           ProfessionEntity profession, String bio) {
+                                          ProfessionEntity profession, String bio) {
         var user = userRepository.save(UserEntity.builder()
                 .name(name).email(email).phone(phone)
                 .role(UserRole.PROFESSIONAL).passwordHash(hash)
@@ -239,7 +237,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private UserEntity createClient(String name, String email, String phone, String hash,
-                                     String taxId, String paymentMethod) {
+                                    String taxId, String paymentMethod) {
         var user = userRepository.save(UserEntity.builder()
                 .name(name).email(email).phone(phone)
                 .role(UserRole.CLIENT).passwordHash(hash)
@@ -257,9 +255,9 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void createAppointment(UserEntity professional, UserEntity client,
-                                    AppointmentStatus status,
-                                    LocalDateTime scheduleDate, LocalDateTime requestDate,
-                                    ServiceTypeEntity... services) {
+                                   AppointmentStatus status,
+                                   LocalDateTime scheduleDate, LocalDateTime requestDate,
+                                   ServiceTypeEntity... services) {
         BigDecimal total = BigDecimal.ZERO;
         for (var svc : services) {
             total = total.add(svc.getPrice());
@@ -281,7 +279,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void createHistory(AppointmentEntity appointment, UserEntity professional,
-                                UserEntity client, LocalDateTime requestDate) {
+                               UserEntity client, LocalDateTime requestDate) {
         // Criação → PENDING
         saveHistory(appointment, null, AppointmentStatus.PENDING, client, requestDate);
 
@@ -311,7 +309,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void saveHistory(AppointmentEntity appointment, AppointmentStatus previous,
-                              AppointmentStatus next, UserEntity changedBy, LocalDateTime changedAt) {
+                             AppointmentStatus next, UserEntity changedBy, LocalDateTime changedAt) {
         appointmentHistoryRepository.save(AppointmentHistoryEntity.builder()
                 .appointment(appointment).previousStatus(previous).newStatus(next)
                 .changedBy(changedBy).changedAt(changedAt)

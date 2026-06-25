@@ -6,13 +6,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
 import agendo.app.server.modules.rating.models.RatingEntity;
 import agendo.app.server.modules.rating.repository.RatingRepository;
-import agendo.app.server.modules.user.models.ProfessionalProfileEntity;
 import agendo.app.server.modules.user.models.UserEntity;
 import agendo.app.server.modules.user.models.UserRole;
-import agendo.app.server.modules.user.repository.ProfessionalProfileRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -20,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 public class RatingService {
 
     private final RatingRepository ratingRepository;
-    private final ProfessionalProfileRepository professionalProfileRepository;
 
     @Transactional
     public RatingEntity create(RatingEntity rating) {

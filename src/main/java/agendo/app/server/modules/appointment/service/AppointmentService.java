@@ -92,38 +92,7 @@ public class AppointmentService {
         AppointmentStatus currentStatus = appointment.getStatus();
         boolean isProfessional = appointment.getProfessional().getId().equals(user.getId());
 
-        switch (newStatus) {
-            case APPROVED -> {
-                if (!isProfessional) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can approve");
-                }
-                if (currentStatus != AppointmentStatus.PENDING) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only approve PENDING appointments");
-                }
-            }
-            case REJECTED -> {
-                if (!isProfessional) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can reject");
-                }
-                if (currentStatus != AppointmentStatus.PENDING) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only reject PENDING appointments");
-                }
-            }
-            case CANCELLED -> {
-                if (currentStatus != AppointmentStatus.APPROVED && currentStatus != AppointmentStatus.PAID) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only cancel APPROVED or PAID appointments");
-                }
-            }
-            case COMPLETED -> {
-                if (!isProfessional) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can mark as completed");
-                }
-                if (currentStatus != AppointmentStatus.APPROVED && currentStatus != AppointmentStatus.PAID) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only complete APPROVED or PAID appointments");
-                }
-            }
-            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");
-        }
+        validateTransition(newStatus, currentStatus, isProfessional);
 
         appointment.setStatus(newStatus);
         AppointmentEntity saved = appointmentRepository.save(appointment);
@@ -144,5 +113,44 @@ public class AppointmentService {
         }
 
         return saved;
+    }
+
+    /**
+     * Valida se a transição de status é permitida, lançando exceção HTTP
+     * apropriada caso contrário. Extraído de updateStatus para reduzir a
+     * complexidade cognitiva do método principal.
+     */
+    private void validateTransition(AppointmentStatus newStatus, AppointmentStatus currentStatus,
+                                    boolean isProfessional) {
+        switch (newStatus) {
+            case APPROVED -> requireProfessionalFrom(isProfessional, currentStatus, "approve",
+                    AppointmentStatus.PENDING);
+            case REJECTED -> requireProfessionalFrom(isProfessional, currentStatus, "reject",
+                    AppointmentStatus.PENDING);
+            case COMPLETED -> requireProfessionalFrom(isProfessional, currentStatus, "complete",
+                    AppointmentStatus.APPROVED, AppointmentStatus.PAID);
+            case CANCELLED -> requireCurrentStatus(currentStatus, "cancel",
+                    AppointmentStatus.APPROVED, AppointmentStatus.PAID);
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");
+        }
+    }
+
+    /** Exige que quem age seja o profissional e que o status atual seja um dos esperados. */
+    private void requireProfessionalFrom(boolean isProfessional, AppointmentStatus currentStatus,
+                                         String action, AppointmentStatus... allowed) {
+        if (!isProfessional) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can " + action);
+        }
+        requireCurrentStatus(currentStatus, action, allowed);
+    }
+
+    /** Exige que o status atual seja um dos esperados para a ação. */
+    private void requireCurrentStatus(AppointmentStatus currentStatus, String action,
+                                      AppointmentStatus... allowed) {
+        for (AppointmentStatus s : allowed) {
+            if (currentStatus == s) return;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Can only " + action + " " + java.util.Arrays.toString(allowed) + " appointments");
     }
 }
