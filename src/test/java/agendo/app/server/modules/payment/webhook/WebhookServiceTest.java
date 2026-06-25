@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import agendo.app.server.modules.appointment.repository.AppointmentRepository;
 import agendo.app.server.modules.payment.models.PaymentEntity;
 import agendo.app.server.modules.payment.repository.PaymentRepository;
 
@@ -31,11 +32,14 @@ class WebhookServiceTest {
     @Mock
     private PaymentRepository paymentRepository;
 
+    @Mock
+    private AppointmentRepository appointmentRepository;
+
     private WebhookService webhookService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        webhookService = new WebhookService(paymentRepository);
+        webhookService = new WebhookService(paymentRepository, appointmentRepository);
     }
 
     @Test
