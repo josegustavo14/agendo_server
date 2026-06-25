@@ -73,7 +73,7 @@ public class AppointmentService {
 
     public List<AppointmentEntity> findActive(UserEntity user) {
         return appointmentRepository.findByParticipantAndStatuses(
-                user, List.of(AppointmentStatus.PENDING, AppointmentStatus.APPROVED));
+                user, List.of(AppointmentStatus.PENDING, AppointmentStatus.APPROVED, AppointmentStatus.PAID));
     }
 
     public List<AppointmentEntity> findArchive(UserEntity user) {
@@ -110,16 +110,16 @@ public class AppointmentService {
                 }
             }
             case CANCELLED -> {
-                if (currentStatus != AppointmentStatus.APPROVED) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only cancel APPROVED appointments");
+                if (currentStatus != AppointmentStatus.APPROVED && currentStatus != AppointmentStatus.PAID) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only cancel APPROVED or PAID appointments");
                 }
             }
             case COMPLETED -> {
                 if (!isProfessional) {
                     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can mark as completed");
                 }
-                if (currentStatus != AppointmentStatus.APPROVED) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only complete APPROVED appointments");
+                if (currentStatus != AppointmentStatus.APPROVED && currentStatus != AppointmentStatus.PAID) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only complete APPROVED or PAID appointments");
                 }
             }
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");

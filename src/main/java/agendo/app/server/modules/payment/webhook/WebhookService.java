@@ -1,5 +1,8 @@
 package agendo.app.server.modules.payment.webhook;
 
+import agendo.app.server.modules.appointment.models.AppointmentEntity;
+import agendo.app.server.modules.appointment.models.AppointmentStatus;
+import agendo.app.server.modules.appointment.repository.AppointmentRepository;
 import agendo.app.server.modules.payment.models.PaymentEntity;
 import agendo.app.server.modules.payment.repository.PaymentRepository;
 import jakarta.transaction.Transactional;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class WebhookService {
 
     private final PaymentRepository paymentRepository;
+    private final AppointmentRepository appointmentRepository;
 
     /**
      * roteia e processa o evento recebido.
@@ -64,8 +68,14 @@ public class WebhookService {
                 billingId,
                 payment.getAppointment() != null ? payment.getAppointment().getId() : "N/A");
 
-        // aqui podemos disparar notificações, e-mails, atualizar o status do agendamento, etc.
-        // ex: appointmentService.markAsPaid(payment.getAppointment().getId());
+        // Promove o agendamento APPROVED → PAID para refletir na UI.
+        // Mantém idempotência: só promove se ainda estava APPROVED.
+        AppointmentEntity appointment = payment.getAppointment();
+        if (appointment != null && appointment.getStatus() == AppointmentStatus.APPROVED) {
+            appointment.setStatus(AppointmentStatus.PAID);
+            appointmentRepository.save(appointment);
+            log.info("[Webhook] Agendamento {} promovido APPROVED → PAID.", appointment.getId());
+        }
     }
 
     private void handleBillingFailed(AbacatePayWebhookPayload payload) {

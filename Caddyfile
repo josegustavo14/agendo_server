@@ -39,6 +39,11 @@
         }
         header @entrypoints Cache-Control "no-store, no-cache, must-revalidate"
 
+        # APK release: sempre revalida. Cada deploy substitui o arquivo,
+        # então a Cloudflare não pode entregar binário antigo.
+        @apk path *.apk
+        header @apk Cache-Control "no-store, no-cache, must-revalidate"
+
         try_files {path} /index.html
         file_server
     }

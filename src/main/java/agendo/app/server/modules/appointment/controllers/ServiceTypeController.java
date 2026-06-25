@@ -16,6 +16,7 @@ import agendo.app.server.modules.appointment.repository.ServiceTypeRepository;
 
 import agendo.app.server.modules.appointment.dto.CreateServiceTypeRequest;
 import agendo.app.server.modules.appointment.models.ServiceTypeEntity;
+import agendo.app.server.modules.appointment.repository.ServiceTypeRepository;
 import agendo.app.server.modules.appointment.service.ServiceTypeService;
 import agendo.app.server.modules.user.models.UserEntity;
 import io.swagger.v3.oas.annotations.Operation;
