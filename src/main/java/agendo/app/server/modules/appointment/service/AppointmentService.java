@@ -73,7 +73,7 @@ public class AppointmentService {
 
     public List<AppointmentEntity> findActive(UserEntity user) {
         return appointmentRepository.findByParticipantAndStatuses(
-                user, List.of(AppointmentStatus.PENDING, AppointmentStatus.APPROVED));
+                user, List.of(AppointmentStatus.PENDING, AppointmentStatus.APPROVED, AppointmentStatus.PAID));
     }
 
     public List<AppointmentEntity> findArchive(UserEntity user) {
@@ -123,32 +123,34 @@ public class AppointmentService {
     private void validateTransition(AppointmentStatus newStatus, AppointmentStatus currentStatus,
                                     boolean isProfessional) {
         switch (newStatus) {
-            case APPROVED -> requireProfessionalFrom(isProfessional, currentStatus,
-                    AppointmentStatus.PENDING, "approve");
-            case REJECTED -> requireProfessionalFrom(isProfessional, currentStatus,
-                    AppointmentStatus.PENDING, "reject");
-            case COMPLETED -> requireProfessionalFrom(isProfessional, currentStatus,
-                    AppointmentStatus.APPROVED, "complete");
-            case CANCELLED -> requireCurrentStatus(currentStatus, AppointmentStatus.APPROVED, "cancel");
+            case APPROVED -> requireProfessionalFrom(isProfessional, currentStatus, "approve",
+                    AppointmentStatus.PENDING);
+            case REJECTED -> requireProfessionalFrom(isProfessional, currentStatus, "reject",
+                    AppointmentStatus.PENDING);
+            case COMPLETED -> requireProfessionalFrom(isProfessional, currentStatus, "complete",
+                    AppointmentStatus.APPROVED, AppointmentStatus.PAID);
+            case CANCELLED -> requireCurrentStatus(currentStatus, "cancel",
+                    AppointmentStatus.APPROVED, AppointmentStatus.PAID);
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status transition");
         }
     }
 
-    /** Exige que quem age seja o profissional e que o status atual seja o esperado. */
+    /** Exige que quem age seja o profissional e que o status atual seja um dos esperados. */
     private void requireProfessionalFrom(boolean isProfessional, AppointmentStatus currentStatus,
-                                         AppointmentStatus required, String action) {
+                                         String action, AppointmentStatus... allowed) {
         if (!isProfessional) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only professional can " + action);
         }
-        requireCurrentStatus(currentStatus, required, action);
+        requireCurrentStatus(currentStatus, action, allowed);
     }
 
-    /** Exige que o status atual seja o esperado para a ação. */
-    private void requireCurrentStatus(AppointmentStatus currentStatus, AppointmentStatus required,
-                                      String action) {
-        if (currentStatus != required) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Can only " + action + " " + required + " appointments");
+    /** Exige que o status atual seja um dos esperados para a ação. */
+    private void requireCurrentStatus(AppointmentStatus currentStatus, String action,
+                                      AppointmentStatus... allowed) {
+        for (AppointmentStatus s : allowed) {
+            if (currentStatus == s) return;
         }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Can only " + action + " " + java.util.Arrays.toString(allowed) + " appointments");
     }
 }

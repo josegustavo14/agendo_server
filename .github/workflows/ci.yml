@@ -1,0 +1,84 @@
+name: Backend CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew clean build -x test
+
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Publish test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-report
+          path: build/reports/tests/test
+
+      - name: Build Docker image (prod)
+        run: docker build -f Dockerfile.prod -t agendo-backend:${{ github.sha }} .
+
+  deploy:
+    name: Deploy to VPS (prod)
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Rsync backend to VPS
+        run: |
+          rsync -az --delete \
+            --exclude='.git/' --exclude='.gradle/' --exclude='build/' \
+            --exclude='testes/' --exclude='docs/' --exclude='*.iml' \
+            --exclude='.env' --exclude='.env.prod' --exclude='HELP.md' \
+            --exclude='certs/' --exclude='web/' \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            ./ root@${{ secrets.SSH_HOST }}:/opt/agendo/
+
+      - name: Rebuild and restart container
+        run: |
+          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.SSH_HOST }} \
+            "cd /opt/agendo && docker compose -f docker-compose.prod.yml up -d --build app-prod"
+
+      - name: Smoke test (with retry)
+        run: |
+          for i in {1..20}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" \
+              https://oortcloud.com.br/api/professions || true)
+            echo "Attempt $i: status=$code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "API did not become healthy after 100s"
+          exit 1

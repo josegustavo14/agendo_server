@@ -101,4 +101,38 @@ public class UserService {
     public Optional<ClientProfileEntity> findClientProfile(UserEntity user) {
         return clientProfileRepository.findByUser(user);
     }
+
+    /**
+     * Atualiza o perfil profissional do usuário autenticado.
+     * Campos nulos no request são ignorados (PATCH-style).
+     * Cria o ProfessionalProfileEntity caso ainda não exista (defensivo).
+     */
+    @Transactional
+    public ProfessionalProfileEntity updateProfessionalProfile(
+            UserEntity user, Long professionId, String bio, Boolean isAvailable) {
+
+        if (user.getRole() != UserRole.PROFESSIONAL) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Apenas profissionais podem atualizar o perfil profissional");
+        }
+
+        ProfessionalProfileEntity profile = professionalProfileRepository.findByUser(user)
+                .orElseGet(() -> professionalProfileRepository.save(
+                        ProfessionalProfileEntity.builder().user(user).build()));
+
+        if (professionId != null) {
+            ProfessionEntity profession = professionRepository.findById(professionId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Profissão não encontrada: " + professionId));
+            profile.setProfession(profession);
+        }
+        if (bio != null) {
+            profile.setBio(bio);
+        }
+        if (isAvailable != null) {
+            profile.setIsAvailable(isAvailable);
+        }
+
+        return professionalProfileRepository.save(profile);
+    }
 }

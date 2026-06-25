@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import agendo.app.server.modules.user.dto.CreateUserRequest;
 import agendo.app.server.modules.user.dto.LoginRequest;
 import agendo.app.server.modules.user.dto.LoginResponse;
+import agendo.app.server.modules.user.dto.UpdateProfessionalProfileRequest;
 import agendo.app.server.modules.user.dto.UserResponse;
 import agendo.app.server.modules.user.dto.UserResponse.ClientProfileResponse;
 import agendo.app.server.modules.user.dto.UserResponse.ProfessionalProfileResponse;
@@ -90,6 +92,27 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "Token inválido ou ausente")
     })
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal UserEntity user) {
+        return ResponseEntity.ok(toUserResponse(user));
+    }
+
+    @PatchMapping("/me/professional-profile")
+    @Operation(
+        summary = "Atualizar perfil profissional",
+        description = "Permite ao profissional autenticado mudar profissão, bio e disponibilidade. Campos nulos são ignorados."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Perfil atualizado"),
+        @ApiResponse(responseCode = "400", description = "Profissão inexistente"),
+        @ApiResponse(responseCode = "403", description = "Usuário não é PROFESSIONAL")
+    })
+    public ResponseEntity<UserResponse> updateProfessionalProfile(
+            @RequestBody UpdateProfessionalProfileRequest request,
+            @AuthenticationPrincipal UserEntity user) {
+
+        ProfessionalProfileEntity updated = userService.updateProfessionalProfile(
+                user, request.professionId(), request.bio(), request.isAvailable());
+        user.setProfessionalProfile(updated);
+
         return ResponseEntity.ok(toUserResponse(user));
     }
 

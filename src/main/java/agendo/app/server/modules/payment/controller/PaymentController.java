@@ -6,6 +6,9 @@ import agendo.app.server.modules.payment.dto.response.BillingListResponse;
 import agendo.app.server.modules.payment.dto.response.BillingResponse;
 import agendo.app.server.modules.payment.dto.response.CustomerListResponse;
 import agendo.app.server.modules.payment.dto.response.CustomerResponse;
+import agendo.app.server.modules.payment.dto.response.PaymentSummaryResponse;
+import agendo.app.server.modules.payment.models.PaymentEntity;
+import agendo.app.server.modules.payment.repository.PaymentRepository;
 import agendo.app.server.modules.payment.service.PaymentService;
 import agendo.app.server.modules.user.models.UserEntity;
 import agendo.app.server.modules.user.repository.UserRepository;
@@ -27,6 +30,7 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
 
     /**
      * Re-tentativa MANUAL da geração de cobrança PIX de um agendamento.
@@ -75,6 +79,45 @@ public class PaymentController {
 
     private int toCents(BigDecimal amount) {
         return amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValueExact();
+    }
+
+    /**
+     * Lê a cobrança PIX já persistida para um agendamento.
+     *
+     * Como a cobrança é criada AUTOMATICAMENTE pelo PaymentOnApprovalListener
+     * quando o profissional aprova o agendamento, o frontend chama este GET
+     * primeiro para obter a URL/status existente. Só recorre ao POST acima
+     * se este retornar 404 (cobrança ainda não foi gerada).
+     *
+     * Apenas o cliente do agendamento pode consultar.
+     *
+     * GET /payments/by-appointment/{appointmentId}
+     */
+    @GetMapping("/by-appointment/{appointmentId}")
+    public ResponseEntity<PaymentSummaryResponse> getByAppointment(
+            @PathVariable Long appointmentId,
+            @AuthenticationPrincipal UserEntity user) {
+
+        AppointmentEntity appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agendamento não encontrado"));
+
+        if (!appointment.getClient().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Apenas o cliente do agendamento pode consultar a cobrança");
+        }
+
+        PaymentEntity payment = paymentRepository.findByAppointmentId(appointmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Nenhuma cobrança encontrada para o agendamento " + appointmentId));
+
+        return ResponseEntity.ok(new PaymentSummaryResponse(
+                payment.getId(),
+                payment.getAbacatePayBillingId(),
+                payment.getPaymentUrl(),
+                payment.getStatus(),
+                payment.getAmountInCents(),
+                payment.getAppointment().getId()
+        ));
     }
 
     /** lista todas as cobranças da sua conta na AbacatePay. */

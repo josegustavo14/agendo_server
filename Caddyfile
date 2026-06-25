@@ -1,22 +1,55 @@
 # ============================================================
-# Agendo - Caddyfile (PRODUÇÃO / VPS)
+# Agendo - Caddy (Produção, atrás da Cloudflare em Full strict)
 #
-# Usado apenas pelo docker-compose.prod.yml (serviço caddy).
-# O ambiente local/dev NÃO usa este arquivo — lá o HTTPS é feito
-# pelo ngrok, e a aplicação é acessada diretamente.
+# - TLS via Cloudflare Origin Certificate (15 anos), montado
+#   em /etc/caddy/certs/ pelo docker-compose.
+# - /api/*  → backend Spring Boot (container app-prod:8080)
+# - /       → Flutter web (build em /srv/web)
 #
-# Ao usar um nome de domínio (em vez de ":80"), o Caddy provisiona
-# e renova o certificado HTTPS via Let's Encrypt automaticamente,
-# servindo em 443. Requisitos na VPS:
-#   - DNS de oortcloud.com.br apontando para o IP da VPS
-#   - Portas 80 e 443 abertas no firewall
+# Cache:
+# - index.html, main.dart.js e service worker são "entry points":
+#   precisam revalidar a cada deploy. Forçamos no-cache para que
+#   a Cloudflare e o navegador sempre busquem a versão nova.
+# - O restante (assets, canvaskit, fontes) tem nome com hash do
+#   build, então pode cachear longo prazo sem invalidação.
 #
 # Recarregar sem rebuild após editar:
 #   docker compose -f docker-compose.prod.yml exec caddy \
 #     caddy reload --config /etc/caddy/Caddyfile
 # ============================================================
 
-oortcloud.com.br {
+(common) {
     encode gzip
-    reverse_proxy app-prod:8080
+
+    handle_path /api/* {
+        reverse_proxy app-prod:8080 {
+            header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+            header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    handle {
+        root * /srv/web
+
+        # Bloqueia cache nos entry points para garantir que deploys novos
+        # sejam vistos imediatamente.
+        @entrypoints {
+            path /index.html /main.dart.js /flutter_bootstrap.js /flutter_service_worker.js /flutter.js /version.json /manifest.json /
+        }
+        header @entrypoints Cache-Control "no-store, no-cache, must-revalidate"
+
+        # APK release: sempre revalida. Cada deploy substitui o arquivo,
+        # então a Cloudflare não pode entregar binário antigo.
+        @apk path *.apk
+        header @apk Cache-Control "no-store, no-cache, must-revalidate"
+
+        try_files {path} /index.html
+        file_server
+    }
+}
+
+oortcloud.com.br, www.oortcloud.com.br {
+    tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+    import common
 }
